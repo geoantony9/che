@@ -6,6 +6,17 @@
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
 
+buildAndDeployArtifacts() {
+    set -x
+    scl enable rh-maven33 'mvn clean install -U -Pintegration'
+    if [[ $? -eq 0 ]]; then
+        echo 'Build Success!'
+        echo 'Going to deploy artifacts'
+    else
+        die_with  'Build Failed!'
+    fi
+}
+
 function installOC() {
   OC_DIR_NAME=openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit
   curl -vL "https://github.com/openshift/origin/releases/download/v3.11.0/${OC_DIR_NAME}.tar.gz" --output ${OC_DIR_NAME}.tar.gz
@@ -17,6 +28,7 @@ function installJQ() {
   installEpelRelease
   yum install --assumeyes -d1 jq
 }
+
 
 function installEpelRelease() {
   if yum repolist | grep epel; then
@@ -53,7 +65,13 @@ function installMvn() {
 }
 
 function installNodejs() {
-  yum install --assumeyes -d1 rh-nodejs8
+  curl -sL https://rpm.nodesource.com/setup_10.x | bash -
+  yum install -y nodejs
+}
+
+function insalllYarn(){
+  yum-config-manager --add-repo https://dl.yarnpkg.com/rpm/yarn.repo
+  yum install -y  yarn
 }
 
 function installGit() {
@@ -62,6 +80,10 @@ function installGit() {
 
 function installWget() {
   yum -y install wget
+}
+
+function installGssCompiler() {
+  yum install -y  gcc-c++ make
 }
 
 function installDependencies() {
@@ -86,6 +108,7 @@ function installDependencies() {
     java-1.8.0-openjdk-devel
   installMvn
   installNodejs
+  insalllYarn
 
   stop=$(date +%s)
   instal_dep_duration=$(($stop - $start))
@@ -146,9 +169,6 @@ function installAndStartMinishift() {
 function installCheCtl() {
   echo "======== Start to install chectl ========"
   bash <(curl -sL https://www.eclipse.org/che/chectl/) --channel=next
-  echo "==== Replace CRD ===="
-  curl -o org_v1_che_crd.yaml https://raw.githubusercontent.com/eclipse/che-operator/63402ddb5b6ed31c18b397cb477906b4b5cf7c22/deploy/crds/org_v1_che_crd.yaml
-  cp org_v1_che_crd.yaml /usr/local/lib/chectl/templates/che-operator/crds/
   echo "======== chectl has been installed successfully ========"
 }
 
@@ -178,7 +198,7 @@ function loginToOpenshiftAndSetDevRople() {
   oc login -u developer -p pass
 }
 
-function archiveArtifacts1() {
+function archiveArtifacts() {
   JOB_NAME=che-nightly
   DATE=$(date +"%m-%d-%Y-%H-%M")
   echo "Archiving artifacts from ${DATE} for ${JOB_NAME}/${BUILD_NUMBER}"
@@ -191,6 +211,11 @@ function archiveArtifacts1() {
 }
 
 createTestWorkspaceAndRunTest() {
+CHE_ROUTE=$(oc get route che --template='{{ .spec.host }}')
+
+echo "====== Check CHE ROUTE ======" 
+curl -vL $CHE_ROUTE
+
 ### Create workspace
 chectl workspace:start --access-token "$USER_ACCESS_TOKEN" -f https://raw.githubusercontent.com/eclipse/che/master/tests/e2e/files/happy-path/happy-path-workspace.yaml
 

@@ -562,6 +562,9 @@ export class WorkspaceDetailsController {
       message += `The workspace uses deprecated plugins${this.hasSelectedDeprecatedEditor ? ' and editor' : ''}.`;
     } else if (this.hasSelectedDeprecatedEditor) {
       message += `The workspace uses deprecated editor.`
+    } else {
+      message += `Unknown Error. Probably, one of Che hosts is signed with a self-signed certificate.
+       Import CA into your browser, you can find instruction how to do it by TODO_URL_TO_DOCS`
     }
 
     return this.$sce.trustAsHtml(message);

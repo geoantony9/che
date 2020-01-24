@@ -35,6 +35,7 @@ interface IBranding {
     organization?: string;
     general?: string;
     converting?: string;
+    certificate? : string;
   };
   workspace?: {
     priorityStacks?: Array<string>;
@@ -64,6 +65,7 @@ const DEFAULT_DOCS_ORGANIZATION = '/docs/organizations.html';
 const DEFAULT_DOCS_FACTORY = '/docs/factories-getting-started.html';
 const DEFAULT_DOCS_GENERAL = '/docs/che-7';
 const DEFAULT_DOCS_CONVERTING = '/docs/che-7/converting-a-che-6-workspace-to-a-che-7-devfile/';
+const DEFAULT_DOCS_CERTIFICATE = 'che-7/setup-che-in-tls-mode-with-self-signed-certificate/';
 const DEFAULT_WORKSPACE_PRIORITY_STACKS = ['Java', 'Java-MySQL', 'Blank'];
 const DEFAULT_WORKSPACE_DEFAULT_STACK = 'java-mysql';
 const DEFAULT_WORKSPACE_CREATION_LINK = '#/create-workspace';
@@ -256,8 +258,6 @@ export class CheBranding {
 
   /**
    * Returns footer additional elements (email button, content, button links).
-   *
-   * @returns {any} additional elements (email button, content, button links).
    */
   getFooter():  {content?: string; links?: Array<{title: string, location: string}>; email: {title: string, address: string, subject: string}} {
     return {
@@ -269,7 +269,6 @@ export class CheBranding {
 
   /**
    * Returns object with configName and name.
-   * @returns {{configName: string, name: string}}
    */
   getCLI(): { configName: string; name: string } {
     return {
@@ -280,22 +279,21 @@ export class CheBranding {
 
   /**
    * Returns object with docs URLs.
-   * @returns {{devfile: string, workspace: string, factory: string, organization: string, general: string, converting: string}}
    */
-  getDocs(): { devfile: string; workspace: string; factory: string; organization: string; general: string, converting: string} {
+  getDocs(): { devfile: string; workspace: string; factory: string; organization: string; general: string, converting: string, certificate: string} {
     return {
       devfile: this.branding.docs && this.branding.docs.devfile ? this.branding.docs.devfile : DEFAULT_DOCS_DEVFILE,
       workspace: this.branding.docs && this.branding.docs.workspace ? this.branding.docs.workspace : DEFAULT_DOCS_WORKSPACE,
       factory: this.branding.docs && this.branding.docs.factory ? this.branding.docs.factory : DEFAULT_DOCS_FACTORY,
       organization: this.branding.docs && this.branding.docs.organization ? this.branding.docs.organization : DEFAULT_DOCS_ORGANIZATION,
       general: this.branding.docs && this.branding.docs.general ? this.branding.docs.general : DEFAULT_DOCS_GENERAL,
-      converting: this.branding.docs && this.branding.docs.converting ? this.branding.docs.converting : DEFAULT_DOCS_CONVERTING
+      converting: this.branding.docs && this.branding.docs.converting ? this.branding.docs.converting : DEFAULT_DOCS_CONVERTING,
+      certificate: this.branding.docs && this.branding.docs.certificate ? this.branding.docs.certificate : DEFAULT_DOCS_CERTIFICATE
     };
   }
 
   /**
    * Returns object with workspace dedicated data.
-   * @returns {{stack: string, workspace: string}}
    */
   getWorkspace(): { priorityStacks: Array<string>; defaultStack: string, creationLink: string} {
     return {

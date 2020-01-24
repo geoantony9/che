@@ -27,7 +27,7 @@ import {WorkspacesConfig} from './workspaces/workspaces-config';
 import {StacksConfig} from './stacks/stacks-config';
 import {GetStartedConfig} from './get-started/get-started-config';
 import {DemoComponentsController} from './demo-components/demo-components.controller';
-import {CheBranding} from '../components/branding/che-branding.factory';
+import {ASSET_PREFIX, CheBranding} from '../components/branding/che-branding.factory';
 import {ChePreferences} from '../components/api/che-preferences.factory';
 import {RoutingRedirect} from '../components/routing/routing-redirect.factory';
 import {RouteHistory} from '../components/routing/route-history.service';
@@ -71,7 +71,9 @@ function keycloakLoad(keycloakSettings: any) {
     script.async = true;
     script.src = keycloakSettings['che.keycloak.js_adapter_url'];
     script.addEventListener('load', resolve);
-    script.addEventListener('error', () => reject('Error loading script.'));
+    script.addEventListener('error', () => {
+      return reject('Error loading script.');
+    });
     script.addEventListener('abort', () => reject('Script loading aborted.'));
     document.head.appendChild(script);
   });
@@ -129,18 +131,25 @@ function getApis(keycloak: any): Promise<void> {
     });
   });
 }
-function showErrorMessage(errorMessage: string) {
-  const div = document.createElement('p');
-  div.className = 'authorization-error';
-  div.innerHTML = errorMessage + '<br/>Click <a href="/">here</a> to reload page.';
-  document.querySelector('.main-page-loader').appendChild(div);
-}
 
 const keycloakAuth = {
   isPresent: false,
   keycloak: null,
   config: null
 };
+
+function showErrorMessage(errorMessage: string) {
+  const div = document.createElement('div');
+  div.className = 'authorization-error';
+  div.innerHTML = `
+ <h3><b>Unknown Error</b></h3>
+ <span><p>Probably, one of Che hosts is signed with a self-signed certificate. Possible solutions would be:</p>
+ <p>1. Import CA into your browser, you can find instruction how to do it by TODO_URL_TO_DOCS</p>
+ <p>2. Open FAILED_TODO_URL in a new tab and add an exclusion for this host and refresh Dashboard.</p></span>
+ <br/>Click <a href="/">here</a> to reload page.`;
+
+  document.querySelector('.main-page-loader').appendChild(div);
+}
 initModule.constant('keycloakAuth', keycloakAuth);
 
 angular.element(document).ready(() => {
@@ -153,11 +162,11 @@ angular.element(document).ready(() => {
     // load Keycloak
     return keycloakLoad(keycloakSettings).then(() => {
       // init Keycloak
-      let theUseNonce: boolean;
+      var theUseNonce: boolean;
       if (typeof keycloakSettings['che.keycloak.use_nonce'] === 'string') {
         theUseNonce = keycloakSettings['che.keycloak.use_nonce'].toLowerCase() === 'true';
       }
-      let initOptions = {
+      var initOptions = {
         useNonce: theUseNonce,
         redirectUrl: keycloakSettings['che.keycloak.redirect_url.dashboard']
       };

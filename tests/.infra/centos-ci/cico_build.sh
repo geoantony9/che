@@ -21,6 +21,7 @@ checkAllCreds
 load_mvn_settings_gpg_key
 installDependencies
 buildAndDeployArtifacts
+testImages "nightly"
 
 
 

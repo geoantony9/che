@@ -17,6 +17,102 @@ buildAndDeployArtifacts() {
     fi
 }
 
+
+
+testImages() {
+    echo "Going to build and push docker images"
+    set -e
+    set -o pipefail
+
+    TAG=$1
+    if [[ ${TAG} != "nightly" ]]; then #if given tag 'nightly' means that don't need to checkout and going to build master
+        git checkout ${TAG}
+    fi
+    REGISTRY="quay.io"
+    ORGANIZATION="eclipse"
+    if [[ -n "${QUAY_ECLIPSE_CHE_USERNAME}" ]] && [[ -n "${QUAY_ECLIPSE_CHE_PASSWORD}" ]]; then
+        docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "${REGISTRY}"
+    else
+      echo "Could not login, missing credentials for pushing to the '${ORGANIZATION}' organization"
+      return
+    fi
+
+    # stop / rm all containers
+    if [[ $(docker ps -aq) != "" ]];then
+        docker rm -f $(docker ps -aq)
+    fi
+
+    # KEEP RIGHT ORDER!!!
+    DOCKER_FILES_LOCATIONS=(
+        dockerfiles/endpoint-watcher
+        dockerfiles/keycloak
+        dockerfiles/postgres
+        dockerfiles/dev
+        dockerfiles/che
+        dockerfiles/dashboard-dev
+        dockerfiles/e2e
+    )
+
+    IMAGES_LIST=(
+        eclipse/che-endpoint-watcher
+        eclipse/che-keycloak
+        eclipse/che-postgres
+        eclipse/che-dev
+        eclipse/che-server
+        eclipse/che-dashboard-dev
+        eclipse/che-e2e
+    )
+
+
+    # BUILD IMAGES
+    for image_dir in ${DOCKER_FILES_LOCATIONS[@]}
+     do
+         bash $(pwd)/${image_dir}/build.sh --tag:${TAG}
+         if [[ ${image_dir} == "dockerfiles/che" ]]; then
+           #CENTOS SINGLE USER
+           BUILD_ASSEMBLY_DIR=$(echo assembly/assembly-main/target/eclipse-che-*/eclipse-che-*/)
+           LOCAL_ASSEMBLY_DIR="${image_dir}/eclipse-che"
+           if [[ -d "${LOCAL_ASSEMBLY_DIR}" ]]; then
+               rm -r "${LOCAL_ASSEMBLY_DIR}"
+           fi
+           cp -r "${BUILD_ASSEMBLY_DIR}" "${LOCAL_ASSEMBLY_DIR}"
+           docker build -t ${ORGANIZATION}/che-server:${TAG}-centos -f $(pwd)/${image_dir}/Dockerfile.centos $(pwd)/${image_dir}/
+         fi
+         if [[ $? -ne 0 ]]; then
+           echo "ERROR:"
+           echo "build of '${image_dir}' image is failed!"
+           exit 1
+         fi
+     done
+
+    #PUSH IMAGES
+    for image in ${IMAGES_LIST[@]}
+     do
+         docker tag "${image}:${TAG}" "${REGISTRY}/${image}:${TAG}"
+         echo y | docker push "${REGISTRY}/${image}:${TAG}"
+         if [[ $2 == "pushLatest" ]]; then
+            docker tag "${image}:${TAG}" "${REGISTRY}/${image}:latest"
+            echo y | docker push "${REGISTRY}/${image}:latest"
+         fi
+
+         if [[ ${image} == "${ORGANIZATION}/che-server" ]]; then
+           docker tag "${image}:${TAG}" "${REGISTRY}/${image}:${TAG}-centos"
+           echo y | docker push "${REGISTRY}/${ORGANIZATION}/che-server:${TAG}-centos"
+           if [[ $2 == "pushLatest" ]]; then
+               docker tag "${image}:${TAG}" "${REGISTRY}/${image}:latest-centos"
+               echo y | docker push "${REGISTRY}/${ORGANIZATION}/che-server:latest-centos"
+           fi
+         fi
+         if [[ $? -ne 0 ]]; then
+           echo "ERROR:"
+           echo "docker push of '${image}' image is failed!"
+           exit 1
+         fi
+     done
+}
+
+
+
 function installOC() {
   OC_DIR_NAME=openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit
   curl -vL "https://github.com/openshift/origin/releases/download/v3.11.0/${OC_DIR_NAME}.tar.gz" --output ${OC_DIR_NAME}.tar.gz

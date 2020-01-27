@@ -86,8 +86,8 @@ cp /usr/local/bin/oc /tmp
 export CHE_INFRASTRUCTURE=openshift
 
 # add github oauth
-kc_container_id=$(docker ps | grep keycloak_keycloak-1 | cut -d ' ' -f1)
-docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh create identity-provider/instances -r che -s alias=github -s providerId=github -s enabled=true -s storeToken=true -s addReadTokenRoleOnCreate=true -s 'config.useJwksUrl="true"' -s config.clientId=$CHE_MULTI_USER_GITHUB_CLIENTID_OCP -s config.clientSecret=$CHE_MULTI_USER_GITHUB_SECRET_OCP -s 'config.defaultScope="repo,user,write:public_key"' --no-config --server http://localhost:8080/auth --user admin --password admin --realm master"
+#kc_container_id=$(docker ps | grep keycloak_keycloak-1 | cut -d ' ' -f1)
+#docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh create identity-provider/instances -r che -s alias=github -s providerId=github -s enabled=true -s storeToken=true -s addReadTokenRoleOnCreate=true -s 'config.useJwksUrl="true"' -s config.clientId=$CHE_MULTI_USER_GITHUB_CLIENTID_OCP -s config.clientSecret=$CHE_MULTI_USER_GITHUB_SECRET_OCP -s 'config.defaultScope="repo,user,write:public_key"' --no-config --server http://localhost:8080/auth --user admin --password admin --realm master"
 
 echo "Configure GitHub test users"
 mkdir -p ${BASEDIR}/che_local_conf_dir

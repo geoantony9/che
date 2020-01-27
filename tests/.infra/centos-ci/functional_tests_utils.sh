@@ -82,7 +82,7 @@ testImages() {
   done
 
   echo '=========================== LIST OF IMAGES ==========================='
-  docker ps -a
+  docker images -a
   echo '=========================== LIST OF IMAGES ==========================='
 }
 

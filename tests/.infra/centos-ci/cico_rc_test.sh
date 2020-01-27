@@ -5,32 +5,21 @@
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
 
-function archiveArtifacts1(){
-  set +e
-  JOB_NAME=che-nightly
-  echo "Archiving artifacts from ${DATE} for ${JOB_NAME}/${BUILD_NUMBER}"
-  ls -la ./artifacts.key
-  chmod 600 ./artifacts.key
-  chown $(whoami) ./artifacts.key
-  mkdir -p ./che/${JOB_NAME}/${BUILD_NUMBER}
-  cp  -R ./report ./che/${JOB_NAME}/${BUILD_NUMBER}/ | true
-  rsync --password-file=./artifacts.key -Hva --partial --relative ./che/${JOB_NAME}/${BUILD_NUMBER} devtools@artifacts.ci.centos.org::devtools/
-  set -e
-}
-
 set -e
+set +x
 
-echo "****** Starting Che RC check $(date) ******"
+echo "****** Starting RH-Che RC check $(date) ******"
 
 total_start_time=$(date +%s)
-export PR_CHECK_BUILD="true"
 export BASEDIR=$(pwd)
-export DEV_CLUSTER_URL=https://devtools-dev.ext.devshift.net:8443/
+export RELEASE_TAG=7.7.1
+export RELEASE_VERSION=7.7.1
 
  eval "$(./env-toolkit load -f jenkins-env.json \
                               CHE_BOT_GITHUB_TOKEN \
                               CHE_MAVEN_SETTINGS \
                               CHE_GITHUB_SSH_KEY \
+                              ^BUILD_NUMBER$ \
                               CHE_OSS_SONATYPE_GPG_KEY \
                               CHE_OSS_SONATYPE_PASSPHRASE \
                               QUAY_ECLIPSE_CHE_USERNAME \
@@ -38,207 +27,94 @@ export DEV_CLUSTER_URL=https://devtools-dev.ext.devshift.net:8443/
 
 source tests/.infra/centos-ci/functional_tests_utils.sh
 
-echo "Checking credentials:"
-checkAllCreds
-
 echo "Installing dependencies:"
 start=$(date +%s)
 installDependencies
 stop=$(date +%s)
-instal_dep_duration=$(($stop - $start))
-echo "Installing all dependencies lasted $instal_dep_duration seconds."
+install_dep_duration=$(($stop - $start))
 
-### DO NOT MERGE!!!
+echo "Install maven"
+curl -L http://mirrors.ukfast.co.uk/sites/ftp.apache.org/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz | tar -C /opt -xzv
+export M2_HOME=/opt/apache-maven-3.3.9
+export M2=$M2_HOME/bin
+export PATH=$M2:/tmp:$PATH
+export JAVA_HOME=/usr/
+mvn --version
 
+echo "Install docker compose"
+sudo curl -L "https://github.com/docker/compose/releases/download/1.25.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
-yum install -y qemu-kvm libvirt libvirt-python libguestfs-tools virt-install
+echo "Installing all dependencies lasted $install_dep_duration seconds."
 
-curl -L https://github.com/dhiltgen/docker-machine-kvm/releases/download/v0.10.0/docker-machine-driver-kvm-centos7 -o /usr/local/bin/docker-machine-driver-kvm
-chmod +x /usr/local/bin/docker-machine-driver-kvm
-
-systemctl enable libvirtd
-systemctl start libvirtd
-
-virsh net-list --all
-
-curl -Lo minishift.tgz https://github.com/minishift/minishift/releases/download/v1.34.2/minishift-1.34.2-linux-amd64.tgz
-tar -xvf minishift.tgz --strip-components=1
-chmod +x ./minishift
-mv ./minishift /usr/local/bin/minishift
-
-minishift version
-minishift config set memory 14GB
-minishift config set cpus 4
-
-minishift start
+installKVM
+installAndStartMinishift
 
 oc login -u system:admin
 oc adm policy add-cluster-role-to-user cluster-admin developer
 oc login -u developer -p pass
 
+installCheCtl
 
-# curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && chmod +x minikube
+echo "Deploy Eclipse Che"
 
-# ./minikube version
+cd /tmp
 
-# ./minikube start --force
+echo "Patch custom-resource.yaml"
 
-# curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+wget https://raw.githubusercontent.com/eclipse/che-operator/master/deploy/crds/org_v1_che_cr.yaml -O custom-resource.yaml
+sed -i "s@server:@server:\n    customCheProperties:\n      CHE_LIMITS_USER_WORKSPACES_RUN_COUNT: '-1'@g" /tmp/custom-resource.yaml
+sed -i "s/customCheProperties:/customCheProperties:\n      CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS: '300000'/" /tmp/custom-resource.yaml
+sed -i "s@identityProviderImage: 'eclipse/che-keycloak:nightly'@identityProviderImage: 'eclipse/che-keycloak:$RELEASE_TAG'@g" /tmp/custom-resource.yaml
+sed -i "s@cheImage: ''@cheImage: 'quay.io/eclipse/che-server'@g" /tmp/custom-resource.yaml
+sed -i "s@cheImageTag: 'nightly'@cheImageTag: '$RELEASE_TAG'@g" /tmp/custom-resource.yaml
+sed -i "s@devfileRegistryImage: 'quay.io/eclipse/che-devfile-registry:nightly'@devfileRegistryImage: 'quay.io/eclipse/che-devfile-registry:$RELEASE_VERSION'@g" /tmp/custom-resource.yaml
+sed -i "s@pluginRegistryImage: 'quay.io/eclipse/che-plugin-registry:nightly'@pluginRegistryImage: 'quay.io/eclipse/che-plugin-registry:$RELEASE_VERSION'@g " /tmp/custom-resource.yaml
 
-# chmod +x ./kubectl
-# mv ./kubectl /usr/local/bin/kubectl
-
-# kubectl version
-
-# kubectl get namespaces
-
-
-bash <(curl -sL  https://www.eclipse.org/che/chectl/) --channel=next
-
-
-echo "====Replace CRD===="
-curl -o org_v1_che_crd.yaml https://raw.githubusercontent.com/eclipse/che-operator/63402ddb5b6ed31c18b397cb477906b4b5cf7c22/deploy/crds/org_v1_che_crd.yaml
-cp org_v1_che_crd.yaml /usr/local/lib/chectl/templates/che-operator/crds/
-
-if chectl server:start -a operator -p openshift --k8spodreadytimeout=360000 --listr-renderer=verbose
-then
-        echo "Started succesfully"
-else
-        echo "==== oc get events ===="
-        oc get events
-        echo "==== oc get all ===="
-        oc get all
-        # echo "==== docker ps ===="
-        # docker ps
-        # echo "==== docker ps -q | xargs -L 1 docker logs ===="
-        # docker ps -q | xargs -L 1 docker logs | true
-        oc logs $(oc get pods --selector=component=che -o jsonpath="{.items[].metadata.name}") || true
-        oc logs $(oc get pods --selector=component=keycloak -o jsonpath="{.items[].metadata.name}") || true
-        curl -vL http://keycloak-che.${LOCAL_IP_ADDRESS}.nip.io/auth/realms/che/.well-known/openid-configuration
-        exit 1337
-fi
+chectl server:start -a operator -p openshift --k8spodreadytimeout=360000 --listr-renderer=verbose --chenamespace=eclipse-che --che-operator-cr-yaml=/tmp/custom-resource.yaml
+oc get checluster -o yaml
 
 CHE_ROUTE=$(oc get route che --template='{{ .spec.host }}')
-
 curl -vL $CHE_ROUTE
 
-### Create user and obtain token
-KEYCLOAK_URL=$(oc get route/keycloak -o jsonpath='{.spec.host}')
-KEYCLOAK_BASE_URL="http://${KEYCLOAK_URL}/auth"
+echo "Start selenium tests"
 
-ADMIN_USERNAME=admin
-ADMIN_PASS=admin
-TEST_USERNAME=testUser1
+cd ${BASEDIR}
+set +x
+cp /usr/local/bin/oc /tmp
+export CHE_INFRASTRUCTURE=openshift
 
-echo "Getting admin token"
-ADMIN_ACCESS_TOKEN=$(curl -X POST $KEYCLOAK_BASE_URL/realms/master/protocol/openid-connect/token -H "Content-Type: application/x-www-form-urlencoded" -d "username=admin" -d "password=admin" -d "grant_type=password" -d "client_id=admin-cli" |jq -r .access_token)
+# add github oauth
+kc_container_id=$(docker ps | grep keycloak_keycloak-1 | cut -d ' ' -f1)
+docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh create identity-provider/instances -r che -s alias=github -s providerId=github -s enabled=true -s storeToken=true -s addReadTokenRoleOnCreate=true -s 'config.useJwksUrl="true"' -s config.clientId=$CHE_MULTI_USER_GITHUB_CLIENTID_OCP -s config.clientSecret=$CHE_MULTI_USER_GITHUB_SECRET_OCP -s 'config.defaultScope="repo,user,write:public_key"' --no-config --server http://localhost:8080/auth --user admin --password admin --realm master"
 
-echo $ADMIN_ACCESS_TOKEN
+echo "Configure GitHub test users"
+mkdir -p ${BASEDIR}/che_local_conf_dir
+export CHE_LOCAL_CONF_DIR=${BASEDIR}/che_local_conf_dir/
+rm -f ${BASEDIR}/che_local_conf_dir/selenium.properties
+echo "github.username=che6ocpmulti" >> ${BASEDIR}/che_local_conf_dir/selenium.properties
+echo "github.password=CheMain2017" >> ${BASEDIR}/che_local_conf_dir/selenium.properties
+echo "github.auxiliary.username=iedexmain1" >> ${BASEDIR}/che_local_conf_dir/selenium.properties
+echo "github.auxiliary.password=CodenvyMain15" >> ${BASEDIR}/che_local_conf_dir/selenium.properties
+export CHE_LOCAL_CONF_DIR=${BASEDIR}/che_local_conf_dir/
 
-echo "Creating user"
+#build selenium module
+echo "Build selenium module"
+mvn clean install -pl :che-selenium-test -am -DskipTests=true -U
 
-USER_JSON="{\"username\": \"${TEST_USERNAME}\",\"enabled\": true,\"emailVerified\": true,\"email\":\"test1@user.aa\"}"
+cd tests/legacy-e2e/che-selenium-test
+bash selenium-tests.sh --threads=1 --host=${CHE_ROUTE} --port=80 --multiuser --test=CreateAndDeleteProjectsTest
+#bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
+#bash selenium-tests.sh --threads=5 --host=${CHE_ROUTE} --port=80 --multiuser
 
-echo $USER_JSON
-
-curl -X POST $KEYCLOAK_BASE_URL/admin/realms/che/users -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}" -H "Content-Type: application/json" -d "${USER_JSON}" -v
-
-USER_ID=$(curl -X GET $KEYCLOAK_BASE_URL/admin/realms/che/users?username=${TEST_USERNAME} -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}" | jq -r .[0].id)
-echo "User id: $USER_ID"
-
-echo "Updating password"
-
-CREDENTIALS_JSON={\"type\":\"password\",\"value\":\"${TEST_USERNAME}\",\"temporary\":false}
-echo $CREDENTIALS_JSON
-
-curl -X PUT $KEYCLOAK_BASE_URL/admin/realms/che/users/${USER_ID}/reset-password -H "Authorization: Bearer ${ADMIN_ACCESS_TOKEN}" -H "Content-Type: application/json" -d "${CREDENTIALS_JSON}" -v
-
-export USER_ACCESS_TOKEN=$(curl -X POST $KEYCLOAK_BASE_URL/realms/che/protocol/openid-connect/token -H "Content-Type: application/x-www-form-urlencoded" -d "username=${TEST_USERNAME}" -d "password=${TEST_USERNAME}" -d "grant_type=password" -d "client_id=che-public" |jq -r .access_token)
-
-### Create workspace
-
-chectl workspace:start --access-token "$USER_ACCESS_TOKEN" -f https://raw.githubusercontent.com/eclipse/che/master/tests/e2e/files/happy-path/happy-path-workspace.yaml
-
-
-### Run tests
-mkdir report
-REPORT_FOLDER=$(pwd)/report
-
-set +e
-docker run --shm-size=256m --network host -v $REPORT_FOLDER:/tmp/e2e/report:Z -e TS_SELENIUM_BASE_URL="http://$CHE_ROUTE" -e TS_SELENIUM_MULTIUSER="true" -e TS_SELENIUM_USERNAME="${TEST_USERNAME}" -e TS_SELENIUM_PASSWORD="${TEST_USERNAME}" eclipse/che-e2e:nightly
-set -e
-
-### Archive artifacts
-
-archiveArtifacts1
-
-
-# set -x
-# nmcli > nmclioutput
-# cat nmclioutput
-
-# firewall-cmd --permanent --new-zone dockerc
-# firewall-cmd --permanent --zone dockerc --add-source 172.17.0.0/16
-# firewall-cmd --permanent --zone dockerc --add-port 8443/tcp
-# firewall-cmd --permanent --zone dockerc --add-port 53/udp
-# firewall-cmd --permanent --zone dockerc --add-port 8053/udp
-# firewall-cmd --reload
-
-
-# # systemctl stop firewalld
-
-
-# LOCAL_IP_ADDRESS=$(ip a show | grep -e "scope.*eth0" | grep -v ':' | cut -d/ -f1 | awk 'NR==1{print $2}')
-# echo $LOCAL_IP_ADDRESS
-
-# oc cluster up --public-hostname="${LOCAL_IP_ADDRESS}" --routing-suffix="${LOCAL_IP_ADDRESS}.nip.io" --loglevel=6
-
-# # oc cluster up --loglevel=6
-
-# oc login -u system:admin
-# oc adm policy add-cluster-role-to-user cluster-admin developer
-# oc login -u developer -p pass
-
-# bash <(curl -sL  https://www.eclipse.org/che/chectl/) --channel=next
-
-
-# echo "====Replace CRD===="
-# curl -o org_v1_che_crd.yaml https://raw.githubusercontent.com/eclipse/che-operator/63402ddb5b6ed31c18b397cb477906b4b5cf7c22/deploy/crds/org_v1_che_crd.yaml
-# cp org_v1_che_crd.yaml /usr/local/lib/chectl/templates/che-operator/crds/
-
-# if chectl server:start -a operator -p openshift --k8spodreadytimeout=360000 --listr-renderer=verbose
-# then
-#         echo "Started succesfully"
-# else
-#         echo "==== oc get events ===="
-#         oc get events
-#         echo "==== oc get all ===="
-#         oc get all
-#         echo "==== docker ps ===="
-#         docker ps
-#         echo "==== docker ps -q | xargs -L 1 docker logs ===="
-#         docker ps -q | xargs -L 1 docker logs | true
-#         oc logs $(oc get pods --selector=component=che -o jsonpath="{.items[].metadata.name}") || true
-#         oc logs $(oc get pods --selector=component=keycloak -o jsonpath="{.items[].metadata.name}") || true
-#         curl -vL http://keycloak-che.${LOCAL_IP_ADDRESS}.nip.io/auth/realms/che/.well-known/openid-configuration
-#         exit 1337
-# fi
-
-# CHE_ROUTE=$(oc get route che --template='{{ .spec.host }}')
-
-# docker run --shm-size=256m -e TS_SELENIUM_BASE_URL="http://$CHE_ROUTE" eclipse/che-e2e:nightly
-
-# set +x
-### DO NOT MERGE!!!
-
-# export PROJECT_NAMESPACE=prcheck-${RH_PULL_REQUEST_ID}
-# export DOCKER_IMAGE_TAG="${RH_TAG_DIST_SUFFIX}"-"${RH_PULL_REQUEST_ID}"
-# CHE_VERSION=$(getVersionFromPom)
-# export CHE_VERSION
-
-# echo "Running ${JOB_NAME} PR: #${RH_PULL_REQUEST_ID}, build number #${BUILD_NUMBER} for che-version:${CHE_VERSION}"
-# .ci/cico_build_deploy_test_rhche.sh
-
-# end_time=$(date +%s)
-# whole_check_duration=$(($end_time - $total_start_time))
-# echo "****** PR check ended at $(date) and whole run took $whole_check_duration seconds. ******"
+JOB_NAME=rc-integration-tests
+DATE=$(date +"%m-%d-%Y-%H-%M")
+echo "Archiving artifacts from ${DATE} for ${JOB_NAME}/${BUILD_NUMBER}"
+cd ${BASEDIR}
+pwd
+ls -la ./artifacts.key
+chmod 600 ./artifacts.key
+chown $(whoami) ./artifacts.key
+mkdir -p ./che/${JOB_NAME}/${BUILD_NUMBER}
+cp -R ${BASEDIR}/tests/legacy-e2e/che-selenium-test/target/site ./che/${JOB_NAME}/${BUILD_NUMBER}/ | true
+rsync --password-file=./artifacts.key -Hva --partial --relative ./che/${JOB_NAME}/${BUILD_NUMBER} devtools@artifacts.ci.centos.org::devtools/

@@ -12,6 +12,7 @@ source tests/.infra/centos-ci/functional_tests_utils.sh
 source .ci/cico_common.sh
 
 installKVM
+installOC
 installAndStartMinishift
 loginToOpenshiftAndSetDevRople
 installCheCtl

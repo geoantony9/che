@@ -16,8 +16,8 @@ installOC
 installAndStartMinishift
 loginToOpenshiftAndSetDevRople
 installCheCtl
-createTestUserAndObtainUserToken
 deployCheIntoCluster
+createTestUserAndObtainUserToken
 if createTestWorkspaceAndRunTest; then
     echo '========Tests passed successfully========'
     archiveArtifacts

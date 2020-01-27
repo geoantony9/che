@@ -11,8 +11,9 @@ echo "========Starting nigtly test job $(date)========"
 source tests/.infra/centos-ci/functional_tests_utils.sh
 source .ci/cico_common.sh
 
-installKVM
-installOC
+setupEnvs
+checkAllCreds
+installDependencies
 installAndStartMinishift
 loginToOpenshiftAndSetDevRople
 installCheCtl

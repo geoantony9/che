@@ -91,6 +91,7 @@ function installOC() {
   curl -vL "https://github.com/openshift/origin/releases/download/v3.11.0/${OC_DIR_NAME}.tar.gz" --output ${OC_DIR_NAME}.tar.gz
   tar -xvf ${OC_DIR_NAME}.tar.gz
   cp ${OC_DIR_NAME}/oc /usr/local/bin
+  cp ${OC_DIR_NAME}/oc /tmp
 }
 
 function installJQ() {
@@ -260,7 +261,7 @@ function deployCheIntoCluster() {
   fi
 }
 
-function loginToOpenshiftAndSetDevRople() {
+function loginToOpenshiftAndSetDevRole() {
   oc login -u system:admin
   oc adm policy add-cluster-role-to-user cluster-admin developer
   oc login -u developer -p pass
@@ -335,4 +336,31 @@ function setupEnvs() {
     CHE_OSS_SONATYPE_PASSPHRASE \
     QUAY_ECLIPSE_CHE_USERNAME \
     QUAY_ECLIPSE_CHE_PASSWORD)"
+}
+
+function configureGithubTestUser() {
+  echo "Configure GitHub test users"
+  mkdir -p che_local_conf_dir
+  export CHE_LOCAL_CONF_DIR=/che_local_conf_dir/
+  rm -f che_local_conf_dir/selenium.properties
+  echo "github.username=che6ocpmulti" >> che_local_conf_dir/selenium.properties
+  echo "github.password=CheMain2017" >> che_local_conf_dir/selenium.properties
+  echo "github.auxiliary.username=iedexmain1" >> che_local_conf_dir/selenium.properties
+  echo "github.auxiliary.password=CodenvyMain15" >> che_local_conf_dir/selenium.properties
+}
+
+function installDockerCompose() {
+  echo "Install docker compose"
+  sudo curl -L "https://github.com/docker/compose/releases/download/1.25.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
+}
+
+function installApacheMaven() {
+  echo "Install maven"
+  curl -L http://mirrors.ukfast.co.uk/sites/ftp.apache.org/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz | tar -C /opt -xzv
+  export M2_HOME=/opt/apache-maven-3.3.9
+  export M2=$M2_HOME/bin
+  export PATH=$M2:/tmp:$PATH
+  export JAVA_HOME=/usr/
+  mvn --version
 }

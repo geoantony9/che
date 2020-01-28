@@ -15,7 +15,7 @@ installKVM
 installDependencies
 installCheCtl
 installAndStartMinishift
-loginToOpenshiftAndSetDevRople
+loginToOpenshiftAndSetDevRole
 deployCheIntoCluster
 createTestUserAndObtainUserToken
 createTestWorkspaceAndRunTest

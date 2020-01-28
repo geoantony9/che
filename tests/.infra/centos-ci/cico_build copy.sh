@@ -19,5 +19,5 @@ loginToOpenshiftAndSetDevRople
 deployCheIntoCluster
 createTestUserAndObtainUserToken
 createTestWorkspaceAndRunTest
-archiveArtifacts
+archiveArtifacts "che-nightly"
 

@@ -267,7 +267,7 @@ function loginToOpenshiftAndSetDevRople() {
 }
 
 function archiveArtifacts() {
-  JOB_NAME=che-nightly
+  JOB_NAME=$1
   DATE=$(date +"%m-%d-%Y-%H-%M")
   echo "Archiving artifacts from ${DATE} for ${JOB_NAME}/${BUILD_NUMBER}"
   ls -la ./artifacts.key

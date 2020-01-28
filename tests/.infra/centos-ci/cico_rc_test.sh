@@ -104,9 +104,9 @@ echo "Build selenium module"
 mvn clean install -pl :che-selenium-test -am -DskipTests=true -U
 
 cd tests/legacy-e2e/che-selenium-test
-bash selenium-tests.sh --threads=1 --host=${CHE_ROUTE} --port=80 --multiuser --test=CreateAndDeleteProjectsTest
+#bash selenium-tests.sh --threads=1 --host=${CHE_ROUTE} --port=80 --multiuser --test=CreateAndDeleteProjectsTest
 #bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
-#bash selenium-tests.sh --threads=5 --host=${CHE_ROUTE} --port=80 --multiuser
+bash selenium-tests.sh --threads=5 --host=${CHE_ROUTE} --port=80 --multiuser
 
 JOB_NAME=rc-integration-tests
 DATE=$(date +"%m-%d-%Y-%H-%M")

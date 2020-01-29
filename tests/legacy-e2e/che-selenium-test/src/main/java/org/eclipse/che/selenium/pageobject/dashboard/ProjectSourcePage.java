@@ -25,6 +25,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.action.ActionsFactory;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
@@ -39,11 +40,16 @@ public class ProjectSourcePage {
 
   private final SeleniumWebDriver seleniumWebDriver;
   private final ActionsFactory actionsFactory;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
 
   @Inject
-  public ProjectSourcePage(SeleniumWebDriver seleniumWebDriver, ActionsFactory actionsFactory) {
+  public ProjectSourcePage(
+      SeleniumWebDriver seleniumWebDriver,
+      ActionsFactory actionsFactory,
+      SeleniumWebDriverHelper seleniumWebDriverHelper) {
     this.seleniumWebDriver = seleniumWebDriver;
     this.actionsFactory = actionsFactory;
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -153,9 +159,7 @@ public class ProjectSourcePage {
    * @param source is type of the existing templates
    */
   public void selectSourceTab(Sources source) {
-    WebElement sourceTab =
-        seleniumWebDriver.findElement(By.id(String.format(Locators.SAMPLES_BUTTON, source.title)));
-    sourceTab.click();
+    seleniumWebDriverHelper.waitAndClick(By.id(String.format(Locators.SAMPLES_BUTTON, source.title)));
   }
 
   /**

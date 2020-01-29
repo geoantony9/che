@@ -354,13 +354,3 @@ function installDockerCompose() {
   sudo curl -L "https://github.com/docker/compose/releases/download/1.25.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   sudo chmod +x /usr/local/bin/docker-compose
 }
-
-function installApacheMaven() {
-  echo "Install maven"
-  curl -L http://mirrors.ukfast.co.uk/sites/ftp.apache.org/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz | tar -C /opt -xzv
-  export M2_HOME=/opt/apache-maven-3.3.9
-  export M2=$M2_HOME/bin
-  export PATH=$M2:/tmp:$PATH
-  export JAVA_HOME=/usr/
-  mvn --version
-}

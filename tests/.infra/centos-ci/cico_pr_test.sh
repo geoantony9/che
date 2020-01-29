@@ -54,7 +54,7 @@ configureGithubTestUser
 
 #bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --host=${CHE_ROUTE} --port=80 --multiuser --test=CreateAndDeleteProjectsTest
 #bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
-bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --threads=5 --host=${CHE_ROUTE} --port=80 --multiuser
+bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --threads=7 --host=${CHE_ROUTE} --port=80 --multiuser
 
 /tmp/oc login -u system:admin
 /tmp/oc get events --all-namespaces
@@ -62,6 +62,6 @@ bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --threads=5 --host=${C
 
 mkdir -p report
 mkdir -p report/site
-cp -r tests/legacy-e2e/che-selenium-test/target/site report/site
+cp -r tests/legacy-e2e/che-selenium-test/target/site report
 
 archiveArtifacts "che-pullrequests-test-temporary"

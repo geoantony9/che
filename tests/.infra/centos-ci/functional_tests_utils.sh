@@ -341,7 +341,7 @@ function setupEnvs() {
 function configureGithubTestUser() {
   echo "Configure GitHub test users"
   mkdir -p che_local_conf_dir
-  export CHE_LOCAL_CONF_DIR=/che_local_conf_dir/
+  export CHE_LOCAL_CONF_DIR=che_local_conf_dir/
   rm -f che_local_conf_dir/selenium.properties
   echo "github.username=che6ocpmulti" >> che_local_conf_dir/selenium.properties
   echo "github.password=CheMain2017" >> che_local_conf_dir/selenium.properties

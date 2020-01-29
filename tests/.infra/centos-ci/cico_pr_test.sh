@@ -58,7 +58,7 @@ bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --host=${CHE_ROUTE} --
 
 /tmp/oc login -u system:admin
 /tmp/oc get events --all-namespaces
-/tmp/oc logs dc/che
+/tmp/oc logs deployments/che | true
 
 mkdir -p report
 mkdir -p report/site

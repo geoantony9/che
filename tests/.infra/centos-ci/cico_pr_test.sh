@@ -21,11 +21,11 @@ setupEnvs
 installDependencies
 installDockerCompose
 
-mvn clean install -Pintegration
-bash dockerfiles/che/build.sh --organization:quay.io/eclipse --tag:${TAG} --dockerfile:Dockerfile
-
-docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "quay.io"
-docker push "quay.io/eclipse/che-server:${TAG}"
+#mvn clean install -Pintegration
+#bash dockerfiles/che/build.sh --organization:quay.io/eclipse --tag:${TAG} --dockerfile:Dockerfile
+#
+#docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "quay.io"
+#docker push "quay.io/eclipse/che-server:${TAG}"
 
 installKVM
 installAndStartMinishift
@@ -53,12 +53,12 @@ mvn clean install -pl :che-selenium-test -am -DskipTests=true -U
 configureGithubTestUser
 
 #bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --host=${CHE_ROUTE} --port=80 --multiuser --test=CreateAndDeleteProjectsTest
-#bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
-bash selenium-tests.sh --threads=5 --host=${CHE_ROUTE} --port=80 --multiuser
+#bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
+bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --threads=5 --host=${CHE_ROUTE} --port=80 --multiuser
 
 /tmp/oc login -u system:admin
 /tmp/oc get events --all-namespaces
-/tmp/oc logs deployments/che | true
+/tmp/oc logs deployments/che || true
 
 mkdir -p report
 mkdir -p report/site

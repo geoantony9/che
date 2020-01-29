@@ -13,21 +13,19 @@ source tests/.infra/centos-ci/functional_tests_utils.sh
 echo "****** Starting RH-Che PR check $(date) ******"
 export BASEDIR=$(pwd)
 echo $BASEDIR
+export PATH=$PATH:/opt/rh/rh-maven33/root/bin
+export PR=15818
+export TAG=PR-${PR}
 
 setupEnvs
 installDependencies
-installApacheMaven
 installDockerCompose
 
-REGISTRY="quay.io"
-ORGANIZATION="eclipse"
-TAG="pr-15818"
-
-mvn clean install -Pintegration
-bash dockerfiles/che/build.sh --organization:${REGISTRY}/${ORGANIZATION} --tag:${TAG} --dockerfile:Dockerfile
-
-docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "${REGISTRY}"
-docker push "${REGISTRY}/${ORGANIZATION}/che-server:${TAG}"
+#mvn clean install -Pintegration
+#bash dockerfiles/che/build.sh --organization:quay.io/eclipse --tag:${TAG} --dockerfile:Dockerfile
+#
+#docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "${REGISTRY}"
+#docker push "quay.io/eclipse/che-server:${TAG}"
 
 installKVM
 installAndStartMinishift
@@ -58,6 +56,8 @@ bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --host=${CHE_ROUTE} --
 #bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
 #bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser
 
+set -e
+mkdir -p report/site
 cp -r tests/legacy-e2e/che-selenium-test/target/site report/site
 
 mkdir -p logs >/dev/null 2>/dev/null
@@ -67,6 +67,7 @@ mkdir -p logs >/dev/null 2>/dev/null
 /tmp/oc logs dc/keycloak > logs/ocp_logs/keycloak.log
 /tmp/oc logs dc/postgres > logs/ocp_logs/postgres.log
 
+mkdir -p report/logs
 cp -r logs report/logs
 
 archiveArtifacts "che-pullrequests-test-temporary"

@@ -18,6 +18,17 @@ setupEnvs
 installDependencies
 installApacheMaven
 installDockerCompose
+
+REGISTRY="quay.io"
+ORGANIZATION="eclipse"
+TAG="pr-15818"
+
+mvn clean install -Pintegration
+bash dockerfiles/che/build.sh --organization:${REGISTRY}/${ORGANIZATION} --tag:${TAG} --dockerfile:Dockerfile
+
+docker login -u "${QUAY_ECLIPSE_CHE_USERNAME}" -p "${QUAY_ECLIPSE_CHE_PASSWORD}" "${REGISTRY}"
+docker push "${REGISTRY}/${ORGANIZATION}/che-server:${TAG}"
+
 installKVM
 installAndStartMinishift
 loginToOpenshiftAndSetDevRole
@@ -28,8 +39,8 @@ cd /tmp
 wget https://raw.githubusercontent.com/eclipse/che-operator/master/deploy/crds/org_v1_che_cr.yaml -O custom-resource.yaml
 sed -i "s@server:@server:\n    customCheProperties:\n      CHE_LIMITS_USER_WORKSPACES_RUN_COUNT: '-1'@g" /tmp/custom-resource.yaml
 sed -i "s/customCheProperties:/customCheProperties:\n      CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS: '300000'/" /tmp/custom-resource.yaml
-sed -i "s@cheImage: ''@cheImage: 'eclipseche/che-server'@g" /tmp/custom-resource.yaml
-sed -i "s@cheImageTag: 'nightly'@cheImageTag: '15818'@g" /tmp/custom-resource.yaml
+sed -i "s@cheImage: ''@cheImage: 'quay.io/eclipse/che-server'@g" /tmp/custom-resource.yaml
+sed -i "s@cheImageTag: 'nightly'@cheImageTag: '${TAG}'@g" /tmp/custom-resource.yaml
 cat /tmp/custom-resource.yaml
 
 chectl server:start -a operator -p openshift --k8spodreadytimeout=360000 --listr-renderer=verbose --chenamespace=eclipse-che --che-operator-cr-yaml=/tmp/custom-resource.yaml
@@ -46,5 +57,16 @@ configureGithubTestUser
 bash tests/legacy-e2e/che-selenium-test/selenium-tests.sh --host=${CHE_ROUTE} --port=80 --multiuser --test=CreateAndDeleteProjectsTest
 #bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser --test=org.eclipse.che.selenium.dashboard.**
 #bash selenium-tests.sh --threads=4 --host=${CHE_ROUTE} --port=80 --multiuser
+
+cp -r tests/legacy-e2e/che-selenium-test/target/site report/site
+
+mkdir -p logs >/dev/null 2>/dev/null
+/tmp/oc login -u system:admin >/dev/null 2>/dev/null
+/tmp/oc get events --all-namespaces > logs/ocp_logs/ocp-events.log
+/tmp/oc logs dc/che > logs/ocp_logs/che-server-pod.log
+/tmp/oc logs dc/keycloak > logs/ocp_logs/keycloak.log
+/tmp/oc logs dc/postgres > logs/ocp_logs/postgres.log
+
+cp -r logs report/logs
 
 archiveArtifacts "che-pullrequests-test-temporary"

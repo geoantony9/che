@@ -159,7 +159,8 @@ public class ProjectSourcePage {
    * @param source is type of the existing templates
    */
   public void selectSourceTab(Sources source) {
-    seleniumWebDriverHelper.waitAndClick(By.id(String.format(Locators.SAMPLES_BUTTON, source.title)));
+    seleniumWebDriverHelper.waitAndClick(
+        By.id(String.format(Locators.SAMPLES_BUTTON, source.title)));
   }
 
   /**

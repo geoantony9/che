@@ -279,13 +279,15 @@ function archiveArtifacts() {
   rsync --password-file=./artifacts.key -Hva --partial --relative ./che/${JOB_NAME}/${BUILD_NUMBER} devtools@artifacts.ci.centos.org::devtools/
 }
 
-createTestWorkspaceAndRunTest() {
-  CHE_ROUTE=$(oc get route che --template='{{ .spec.host }}')
-
+function defindCheRoute(){
+CHE_ROUTE=$(oc get route che --template='{{ .spec.host }}')
   echo "====== Check CHE ROUTE ======"
   curl -vL $CHE_ROUTE
+}
 
-  ### Create workspace
+createTestWorkspaceAndRunTest() {
+  defindCheRoute
+   ### Create workspace
   chectl workspace:start --access-token "$USER_ACCESS_TOKEN" -f https://raw.githubusercontent.com/eclipse/che/master/tests/e2e/files/happy-path/happy-path-workspace.yaml
 
   ### Create directory for report
